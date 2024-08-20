@@ -1,0 +1,18 @@
+# Run: conda env create --file environment.yml
+name: genetic_tsp
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.13
+  - anaconda
+  - tqdm
+  - pytorch=2.1.1
+  - pytorch-cuda=11.8
+  - torchvision
+  - matplotlib
+  - pip
+  - pip:
+    - tensorboard_logger
