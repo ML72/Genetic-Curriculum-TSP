@@ -3,6 +3,7 @@ import time
 import random
 from tqdm import tqdm
 import torch
+import numpy as np
 import math
 
 from torch.utils.data import DataLoader
@@ -184,6 +185,13 @@ def train_epoch(
             },
             os.path.join(opts.save_dir, 'epoch-{}.pt'.format(epoch))
         )
+
+        if opts.verbose_checkpoints:
+            print('Saving genomes and datasets...')
+            genome_filepath = os.path.join(opts.save_dir, 'epoch-{}_genome.npy'.format(epoch))
+            data_filepath = os.path.join(opts.save_dir, 'epoch-{}_data.npy'.format(epoch))
+            np.save(genome_filepath, np.array(genomes))
+            np.save(data_filepath, np.array(training_dataset.data))
 
     if not opts.no_tensorboard:
         avg_reward = validate(model, val_dataset, opts)
