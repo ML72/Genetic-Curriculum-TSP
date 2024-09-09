@@ -188,9 +188,10 @@ def train_epoch(
 
         if opts.verbose_checkpoints:
             print('Saving genomes and datasets...')
-            genome_filepath = os.path.join(opts.save_dir, 'epoch-{}_genome.npy'.format(epoch))
+            if opts.use_genome:
+                genome_filepath = os.path.join(opts.save_dir, 'epoch-{}_genome.npy'.format(epoch))
+                np.save(genome_filepath, np.array(genomes))
             data_filepath = os.path.join(opts.save_dir, 'epoch-{}_data.npy'.format(epoch))
-            np.save(genome_filepath, np.array(genomes))
             np.save(data_filepath, np.array(training_dataset.data))
 
     if not opts.no_tensorboard:
