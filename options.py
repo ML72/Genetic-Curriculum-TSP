@@ -83,6 +83,7 @@ def get_options(args=None):
     parser.add_argument('--pretrain_path', type=str, default=None, help='Fine-tune a pretrained model')
     parser.add_argument('--no_tensorboard', action='store_true', help='Disable logging TensorBoard files')
     parser.add_argument('--no_progress_bar', action='store_true', help='Disable progress bar')
+    parser.add_argument('--save_data', default=None, help='Absolute path directory to save the data generated on the fly during training')
 
     opts = parser.parse_args(args)
 

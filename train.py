@@ -229,6 +229,10 @@ def train_epoch(
         # Clip values
         new_genomes = torch.clamp(new_genomes, min=GENOME_MIN, max=GENOME_MAX)
     
+    # Save data if applicable
+    if opts.save_data is not None:
+        torch.save({"data": training_dataset, "sorted_idx": sorted_idx}, os.path.join(opts.save_data, '{}-epoch-{}.pt'.format(opts.run_name, epoch)))
+
     return new_genomes, ewc_dataset
 
 
