@@ -54,9 +54,9 @@ def eval_dataset_mp(args):
     return _eval_dataset(model, dataset, width, softmax_temp, opts, device)
 
 
-def eval_dataset(dataset_path, width, softmax_temp, opts):
+def eval_dataset(dataset_path, width, softmax_temp, opts, eval_baseline=False):
     # Even with multiprocessing, we load the model here since it contains the name where to write results
-    model, _ = load_model(opts.model)
+    model, _ = load_model(opts.model, get_baseline=eval_baseline)
     use_cuda = torch.cuda.is_available() and not opts.no_cuda
     use_oracle = opts.oracle_baseline is not None
     if opts.multiprocessing:
@@ -128,8 +128,26 @@ def eval_dataset(dataset_path, width, softmax_temp, opts):
 
     dataset_basename, ext = os.path.splitext(os.path.split(dataset_path)[-1])
     model_name = "_".join(os.path.normpath(os.path.splitext(opts.model)[0]).split(os.sep)[-2:])
-    results_dir = os.path.join(opts.results_dir, model.problem.NAME, dataset_basename)
-    if opts.o is None:
+    if opts.verbose_eval:
+        results_dir = os.path.join(opts.results_dir, model.problem.NAME, "_".join(model_name.split("_")[:-1]))
+        os.makedirs(results_dir, exist_ok=True)
+
+        if eval_baseline:
+            out_file = os.path.join(results_dir, "{}-{}{}-t{}-baseline{}".format(
+                dataset_basename,
+                opts.decode_strategy,
+                width if opts.decode_strategy != 'greedy' else '',
+                softmax_temp, ext
+            ))
+        else:
+            out_file = os.path.join(results_dir, "{}-{}{}-t{}{}".format(
+                dataset_basename,
+                opts.decode_strategy,
+                width if opts.decode_strategy != 'greedy' else '',
+                softmax_temp, ext
+            ))
+    elif opts.o is None:
+        results_dir = os.path.join(opts.results_dir, model.problem.NAME, dataset_basename)
         os.makedirs(results_dir, exist_ok=True)
 
         out_file = os.path.join(results_dir, "{}-{}-{}{}-t{}-{}-{}{}".format(
@@ -142,7 +160,7 @@ def eval_dataset(dataset_path, width, softmax_temp, opts):
         out_file = opts.o
 
     if not opts.all_epochs:
-        print(out_file)
+        print("Saving results to", out_file)
         assert opts.f or not os.path.isfile(
             out_file), "File already exists! Try running with -f option to overwrite."
 
@@ -255,6 +273,7 @@ if __name__ == "__main__":
     parser.add_argument('--oracle_baseline', type=str, default=None, help='Oracle baseline for computing gap statistics')
     parser.add_argument('--model', type=str)
     parser.add_argument('--all_epochs', action='store_true', help='Evaluate all epochs')
+    parser.add_argument('--verbose_eval', action='store_true', help='Evaluate on a verbose run')
     parser.add_argument('--no_cuda', action='store_true', help='Disable CUDA')
     parser.add_argument('--no_progress_bar', action='store_true', help='Disable progress bar')
     parser.add_argument('--compress_mask', action='store_true', help='Compress mask into long')
@@ -270,11 +289,19 @@ if __name__ == "__main__":
 
     assert not (opts.all_epochs and opts.model.endswith(".pt")), "Can only use --all_epochs on a folder"
 
+    if opts.verbose_eval:
+        assert not opts.all_epochs, "Cannot use --all_epochs and --verbose_eval at the same time"
+        assert opts.oracle_baseline is None, "Cannot use --verbose_eval with oracle baseline"
+        assert len(opts.datasets) == 1, "Can only use --verbose_eval with a single dataset"
+        assert opts.datasets[0] == opts.model, "Model and dataset must both be model folder for verbose evaluation"
+        print("Note that --results_dir and -o are ignored when --verbose_eval is set")
+
     widths = opts.width if opts.width is not None else [0]
 
     for width in widths:
         for dataset_path in opts.datasets:
             if opts.all_epochs:
+                # Case 1: Evaluate all epochs for a model on a dataset
                 base_model_path = opts.model
                 res = {}
                 for epoch_file in os.listdir(opts.model):
@@ -301,5 +328,17 @@ if __name__ == "__main__":
                     results_prefix = results_prefix[:-len(str(epoch)+'_epoch-')]
                 with open(results_prefix + "-epoch_data.json", 'w') as f:
                     json.dump(res, f, indent=2)
+            elif opts.verbose_eval:
+                # Case 2: Evaluate model progress over a verbose run
+                base_model_path = opts.model
+                for epoch_file in os.listdir(opts.model):
+                    if not epoch_file.endswith(".pt"):
+                        continue
+                    dataset_path = os.path.join(base_model_path, epoch_file.split(".")[0] + "_data.npy")
+                    model_path = os.path.join(base_model_path, epoch_file)
+                    opts.model = model_path
+                    eval_dataset(dataset_path, width, opts.softmax_temperature, opts)
+                    eval_dataset(dataset_path, width, opts.softmax_temperature, opts, eval_baseline=True)
             else:
+                # Case 3: Evaluate a single model on a dataset
                 eval_dataset(dataset_path, width, opts.softmax_temperature, opts)

@@ -34,7 +34,7 @@ def move_to(var, device):
     return var.to(device)
 
 
-def _load_model_file(load_path, model):
+def _load_model_file(load_path, model, get_baseline=False):
     """Loads the model with parameters from the file and returns optimizer state dict if it is in the file"""
 
     # Load the model parameters from a saved state
@@ -49,7 +49,10 @@ def _load_model_file(load_path, model):
 
     if isinstance(load_data, dict):
         load_optimizer_state_dict = load_data.get('optimizer', None)
-        load_model_state_dict = load_data.get('model', load_data)
+        if get_baseline:
+            load_model_state_dict = load_data.get('baseline').get('model').state_dict()
+        else:
+            load_model_state_dict = load_data.get('model', load_data)
     else:
         load_model_state_dict = load_data.state_dict()
 
@@ -76,7 +79,7 @@ def load_args(filename):
     return args
 
 
-def load_model(path, epoch=None):
+def load_model(path, epoch=None, get_baseline=False):
     from nets.attention_model import AttentionModel
     from nets.pointer_network import PointerNetwork
 
@@ -118,9 +121,12 @@ def load_model(path, epoch=None):
     )
     # Overwrite model parameters by parameters to load
     load_data = torch_load_cpu(model_filename)
-    model.load_state_dict({**model.state_dict(), **load_data.get('model', {})})
+    if get_baseline:
+        model.load_state_dict({**model.state_dict(), **load_data.get('baseline').get('model').state_dict()})
+    else:
+        model.load_state_dict({**model.state_dict(), **load_data.get('model', {})})
 
-    model, *_ = _load_model_file(model_filename, model)
+    model, *_ = _load_model_file(model_filename, model, get_baseline=get_baseline)
 
     model.eval()  # Put in eval mode
 
