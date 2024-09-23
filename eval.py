@@ -127,6 +127,7 @@ def eval_dataset(dataset_path, width, softmax_temp, opts, eval_baseline=False):
     print("Calculated total duration: {}".format(timedelta(seconds=int(np.sum(durations) / parallelism))))
 
     dataset_basename, ext = os.path.splitext(os.path.split(dataset_path)[-1])
+    ext = ".pkl"
     model_name = "_".join(os.path.normpath(os.path.splitext(opts.model)[0]).split(os.sep)[-2:])
     if opts.verbose_eval:
         results_dir = os.path.join(opts.results_dir, model.problem.NAME, "_".join(model_name.split("_")[:-1]))
